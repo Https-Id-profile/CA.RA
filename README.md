@@ -1,2 +1,0 @@
-# CA.RA
-Education 
